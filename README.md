@@ -1,6 +1,6 @@
 # Go-imgskeleton
 Go语言写的图像灰度提取、二值化、距离变换提取骨架
-请在(releases)[https://github.com/BapiGso/Go-imgskeleton/releases]下载二进制文件运行
+请在[releases](https://github.com/BapiGso/Go-imgskeleton/releases)下载二进制文件运行
 只编译了常用的平台，若您的平台不在列表内，还请自行编译
 
 # TodoList
