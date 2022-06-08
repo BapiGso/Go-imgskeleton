@@ -55,46 +55,66 @@ func dealarr(bianjie *image.RGBA) [][]uint8 {
 	return yslice
 }
 
-func mindis(bianjie *image.RGBA, yslice [][]uint8) *image.RGBA {
+func mindis(bianjie *image.RGBA, yslice [][]uint8, shendu int) *image.RGBA {
 	bounds := bianjie.Bounds()
 	dx := bounds.Dx()
 	dy := bounds.Dy()
 	newRgba := image.NewRGBA(bounds)
 	for y := 1; y < dy-1; y++ {
 		for x := 1; x < dx-1; x++ {
-			colorRgb := bianjie.At(x, y)
-			_, g, _, _ := colorRgb.RGBA()
+			//colorRgb := bianjie.At(x, y)
+			//_, g, _, _ := colorRgb.RGBA()
 			//染成黑色，不过为了不混淆先染成1
 			newG := uint8(1)
-			//如果是内部点
-			if (g >> 8) == 128 {
+			//如果是白色外部
+			if yslice[y][x] == 2 {
+				//newG = uint8(255)
+				//也先染成黑色好看
+				newG = uint8(1)
+			}
+			//如果是灰色内部点
+			if yslice[y][x] == 1 {
+				//也染黑色在加
+				newG = uint8(1)
 				//算该点到最近的一个边界（不是指边界点）长度，防止溢出
 				l := []int{x, y, dx - x, dy - y}
 				minl := min(l)
 				for i := 0; i < minl; i++ {
-					var up, down, right, left = false, false, false, false
+					var up, down, right, left, ur, ul, dr, dl = true, true, true, true, true, true, true, true
 					//如果往周围走碰到了黑色边界
 					if yslice[y+i][x] == 0 {
-						up = true
+						up = false
 					}
 					if yslice[y-i][x] == 0 {
-						up = true
+						down = false
 					}
 					if yslice[y][x+i] == 0 {
-						up = true
+						right = false
 					}
 					if yslice[y][x-i] == 0 {
-						up = true
+						left = false
 					}
-					if up || down || left || right {
+					if yslice[y+i][x+i] == 0 {
+						ur = false
+					}
+					if yslice[y+i][x-i] == 0 {
+						ul = false
+					}
+					if yslice[y-i][x+i] == 0 {
+						dr = false
+					}
+					if yslice[y-i][x-i] == 0 {
+						dl = false
+					}
+					if !up || !down || !left || !right || !ur || !ul || !dr || !dl {
 						//tmpslice = append(tmpslice, "b")
-						newG = uint8(i)
+						newG = newG + uint8(i*shendu/minl)
 						break
 					}
 				}
 			}
 
-			newRgba.SetRGBA(x, y, color.RGBA{R: 10 * newG, G: 10 * newG, B: 10 * newG, A: 255})
+			newRgba.SetRGBA(x, y, color.RGBA{R: newG, G: newG, B: newG, A: 255})
 		}
 	}
 	return newRgba
@@ -142,7 +162,7 @@ func setNeighbourhood(arraylist [][]uint8, erzhi *image.RGBA, dy int, dx int) *i
 	//fmt.Printf("%v\n", newslice)
 }
 
-func erzhihua(m image.Image) (*image.RGBA, [][]uint8, int, int) { //灰度化图像。
+func erzhihua(m image.Image, yuzhi uint32) (*image.RGBA, [][]uint8, int, int) { //灰度化图像。
 	bounds := m.Bounds()
 	dx := bounds.Dx()
 	dy := bounds.Dy()
@@ -155,7 +175,7 @@ func erzhihua(m image.Image) (*image.RGBA, [][]uint8, int, int) { //灰度化图
 			_, g, _, _ := colorRgb.RGBA()
 			newG := uint8(0)
 			//阈值范围0~65535
-			if g > 20000 {
+			if (g >> 8) > yuzhi {
 				newG = uint8(255)
 				xslice = append(xslice, 0)
 			} else {
@@ -214,7 +234,17 @@ func outimg(name string, img *image.RGBA) {
 }
 
 func main() {
-	imagePath := "D:\\GoLand 2022.1.1\\homework\\hello\\assets\\mla.png"
+	var imagePath string
+	var yuzhi uint32
+	var shendu int
+	fmt.Println("推荐使用白底图片")
+	fmt.Println("请输入图片路径:")
+	fmt.Scanln(&imagePath)
+	fmt.Println("请输入二值化灰度阈值(0-255):")
+	fmt.Scanln(&yuzhi)
+	fmt.Println("请输入骨架染色深度(我自己弄的一个参数，推荐200±50):")
+	fmt.Scanln(&shendu)
+
 	file, _ := os.Open(imagePath)
 	defer file.Close() //这个是方式防止忘记关掉。内存溢出。
 	img, _, err := image.Decode(file)
@@ -225,13 +255,13 @@ func main() {
 	//灰度
 	graychange := grayingImage(img)
 	//二值化 数组，长宽
-	erzhi, arraylist, dx, dy := erzhihua(img)
+	erzhi, arraylist, dx, dy := erzhihua(img, yuzhi)
 	//划分边界点内部点
 	bianjie := setNeighbourhood(arraylist, erzhi, dy, dx)
 	//先变成数组好计算
 	slice123 := dealarr(bianjie)
 	//欧式距离变换
-	oushi := mindis(bianjie, slice123)
+	oushi := mindis(bianjie, slice123, shendu)
 	outimg("欧式.png", oushi)
 	outimg("灰度.png", graychange)
 	outimg("二值.png", erzhi)
